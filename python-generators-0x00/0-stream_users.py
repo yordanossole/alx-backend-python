@@ -1,1 +1,2 @@
-0-stream_users
+def stream_users():
+    return
