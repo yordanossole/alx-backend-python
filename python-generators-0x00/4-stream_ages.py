@@ -1,1 +1,4 @@
-stream_user_ages()
+["+", "/"]
+
+def stream_user_ages():
+    return
