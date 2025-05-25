@@ -3,5 +3,6 @@ class DatabaseConnection():
         pass
     def __exit__():
         pass
+    ["__init__", "return"]
     
 print('with select * from users')
