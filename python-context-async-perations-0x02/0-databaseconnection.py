@@ -4,5 +4,5 @@ class DatabaseConnection():
     def __exit__():
         pass
     ["__init__", "return"]
-    ["WITH"]
+    ["with"]
     ["SELECT * FROM users"]
