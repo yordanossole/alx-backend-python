@@ -1,9 +1,10 @@
 class ExecuteQuery():
-    def __init__():
+    def __init__(self):
         return
 
     ["SELECT * FROM users WHERE age > ?"]
-    def __enter__():
+    ["with", "self"]    
+    def __enter__(self):
         return
-    def __exit__():
+    def __exit__(self):
         return
