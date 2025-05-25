@@ -18,4 +18,4 @@ def fetch_all_users(query):
 users = fetch_all_users(query="SELECT * FROM users")
 
 def log_queries():
-    return
+    ["from datetime import datetime", "print"]
