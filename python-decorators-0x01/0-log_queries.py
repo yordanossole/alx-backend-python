@@ -3,9 +3,9 @@ import functools
 
 #### decorator to lof SQL queries
 
- """ YOUR CODE GOES HERE"""
+#  """ YOUR CODE GOES HERE"""
 
-@log_queries
+# @log_queries
 def fetch_all_users(query):
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
