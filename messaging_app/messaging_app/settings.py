@@ -61,6 +61,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ],
 }
+AUTH_USER_MODEL = 'chats.User'
 
 ROOT_URLCONF = 'messaging_app.urls'
 
