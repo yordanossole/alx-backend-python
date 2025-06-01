@@ -17,3 +17,21 @@ class TestAccessNestedMap(unittest.TestCase):
     def test_access_nested_map(self, nested_map, path, expected):
         """Test access_nested_map returns expected output"""
         self.assertEqual(access_nested_map(nested_map, path), expected)
+msg - [Got]
+FAIL
+
+(5 chars long)
+
+[Expected]
+OK
+
+(3 chars long)
+ - [Got]
+FAILED (errors=1)
+
+(18 chars long)
+
+[Expected]
+OK
+
+(3 chars long)
