@@ -75,34 +75,23 @@ class TestMemoize(unittest.TestCase):
             self.assertEqual(result2, 42)
             mock_m.assert_called_once()
 
+
 class TestGithubOrgClient(unittest.TestCase):
-    """Test class for GithubOrgClient"""
+    """Tests for the GithubOrgClient class"""
 
     @parameterized.expand([
-        ("google",),
-        ("abc",),
+        ("google", {"login": "google"}),
+        ("abc", {"login": "abc"}),
     ])
-    @patch("client.get_json")
-    def test_org(self, org_name, mock_get_json):
-        """Test that GithubOrgClient.org returns correct data"""
-        expected_payload = {"login": org_name}
-        mock_get_json.return_value = expected_payload
+    @patch('client.get_json')
+    def test_org(self, org_name, expected, mock_get_json):
+        """Test that GithubOrgClient.org returns the correct org data"""
+        mock_get_json.return_value = expected
 
         client = GithubOrgClient(org_name)
-        result = client.org
+        result = client.org()
 
-        self.assertEqual(result, expected_payload)
+        self.assertEqual(result, expected)
         mock_get_json.assert_called_once_with(
             f"https://api.github.com/orgs/{org_name}"
         )
-
-        def test_public_repos_url(self):
-            """Test that _public_repos_url returns expected URL from org"""
-            with patch.object(
-                GithubOrgClient, "org",
-                new_callable=PropertyMock
-            ) as mock_org:
-                mock_org.return_value = {"repos_url": "https://api.github.com/orgs/test/repos"}
-                client = GithubOrgClient("test")
-                result = client._public_repos_url
-                self.assertEqual(result, "https://api.github.com/orgs/test/repos")
