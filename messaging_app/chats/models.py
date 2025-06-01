@@ -18,6 +18,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
+    phone_number = models.CharField(max_length=150)
 
     # (password is inherited from AbstractUser as a CharField; no need to re-declare it.)
     # If you want to enforce email as the username field, you could add:
