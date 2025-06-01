@@ -6,7 +6,7 @@ from unittest.mock import patch, Mock
 from parameterized import parameterized
 from utils import access_nested_map, get_json, memoize
 from client import GithubOrgClient
-
+from unittest.mock import PropertyMock  # Add at top with other imports
 
 class TestAccessNestedMap(unittest.TestCase):
     """Test class for access_nested_map"""
@@ -95,3 +95,14 @@ class TestGithubOrgClient(unittest.TestCase):
         mock_get_json.assert_called_once_with(
             f"https://api.github.com/orgs/{org_name}"
         )
+
+        def test_public_repos_url(self):
+            """Test that _public_repos_url returns expected URL from org"""
+            with patch.object(
+                GithubOrgClient, "org",
+                new_callable=PropertyMock
+            ) as mock_org:
+                mock_org.return_value = {"repos_url": "https://api.github.com/orgs/test/repos"}
+                client = GithubOrgClient("test")
+                result = client._public_repos_url
+                self.assertEqual(result, "https://api.github.com/orgs/test/repos")
