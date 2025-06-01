@@ -1,11 +1,17 @@
+from django.contrib import admin
 from django.urls import path, include
-from rest_framework import routers
-from .views import ConversationViewSet, MessageViewSet
+from django.conf import settings
+from django.conf.urls.static import static
+from rest_framework.routers import DefaultRouter
+from chats.views import ConversationViewSet, MessageViewSet
 
-router = routers.DefaultRouter()
-router.register(r'conversations', ConversationViewSet, basename='conversation')
-router.register(r'messages', MessageViewSet, basename='message')
+# Create a router and register our viewsets with it
+router = DefaultRouter()
+router.register('conversations', ConversationViewSet, basename='conversation')
+router.register('messages', MessageViewSet, basename='message')
 
 urlpatterns = [
-    path('', include(router.urls)),
-]
+    path('admin/', admin.site.urls),
+    path('api/', include(router.urls)),  # Include the router's URLs
+    path('api-auth/', include('rest_framework.urls')),  # DRF auth URLs
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
