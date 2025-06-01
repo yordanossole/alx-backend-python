@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 from parameterized import parameterized
 from unittest.mock import PropertyMock
+from unittest.mock import patch, PropertyMock
 
 from client import GithubOrgClient
 
@@ -36,6 +37,32 @@ class TestGithubOrgClient(unittest.TestCase):
             mock_org.return_value = {"repos_url": test_url}
             client = GithubOrgClient("testorg")
             self.assertEqual(client._public_repos_url, test_url)
+
+
+class TestGithubOrgClient(unittest.TestCase):
+    # ... previous methods ...
+
+    @patch("client.get_json")
+    def test_public_repos(self, mock_get_json):
+        """Test that public_repos returns expected repo list"""
+        # Fake repo payload returned by get_json
+        fake_repos_payload = [
+            {"name": "repo1"},
+            {"name": "repo2"},
+            {"name": "repo3"}
+        ]
+        mock_get_json.return_value = fake_repos_payload
+
+        # Patch the _public_repos_url property
+        with patch("client.GithubOrgClient._public_repos_url", new_callable=PropertyMock) as mock_url:
+            mock_url.return_value = "https://fakeurl.com/orgs/testorg/repos"
+            client = GithubOrgClient("testorg")
+            result = client.public_repos()
+
+            # Assertions
+            self.assertEqual(result, ["repo1", "repo2", "repo3"])
+            mock_url.assert_called_once()
+            mock_get_json.assert_called_once_with("https://fakeurl.com/orgs/testorg/repos")
 
 
 if __name__ == "__main__":
