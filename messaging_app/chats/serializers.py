@@ -1,88 +1,51 @@
-# messaging_app/chats/serializers.py
-
-from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import Conversation, Message
-
-User = get_user_model()
-
+from .models import User, Conversation, Message
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the custom User model.
-    - Adds a write-only CharField for password.
-    - Overrides create() to set the password properly.
-    """
-    password = serializers.CharField(write_only=True)
-
     class Meta:
         model = User
-        fields = (
-            'user_id',
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-            'password',
-        )
+        fields = ['id', 'username', 'email', 'password', 
+                 'bio', 'phone_number', 'is_online', 'last_seen', 'status']
+        extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        # Remove password from validated_data to handle it separately
-        password = validated_data.pop('password', None)
-        user = User(**validated_data)
-        if password:
-            user.set_password(password)
-        else:
-            raise serializers.ValidationError("Password is required for user creation.")
-        user.save()
+        user = User.objects.create_user(**validated_data)
         return user
 
-
-class MessageSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Message.
-    - Includes a SerializerMethodField 'short_content' for a truncated preview.
-    - Validates that message_body is not blank.
-    """
-    sender = UserSerializer(read_only=True)
-    short_content = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Message
-        fields = (
-            'message_id',
-            'conversation_id',
-            'sender',
-            'message_body',
-            'sent_at',
-            'short_content',
-        )
-
-    def get_short_content(self, obj):
-        # Return the first 50 characters of message_body (or entire body if shorter)
-        text = obj.message_body or ""
-        return text if len(text) <= 50 else text[:50] + "…"
-
-    def validate_message_body(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError("Message body cannot be blank.")
-        return value
-
-
 class ConversationSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Conversation.
-    - 'participants' is a list of UserSerializer (read-only).
-    - 'messages' is nested as a list of MessageSerializer (read-only).
-    """
-    participants = UserSerializer(many=True, read_only=True)
-    messages = MessageSerializer(many=True, read_only=True)
+    participants = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
-        fields = (
-            'conversation_id',
-            'participants',
-            'created_at',
-            'messages',
-        )
+        fields = ['id', 'participants', 'last_message', 'created_at', 'updated_at']
+
+    def get_participants(self, obj):
+        return UserSerializer(obj.participants.all(), many=True).data
+
+
+    def get_last_message(self, obj):
+        last_message = obj.messages.order_by('-sent_at').first()
+        if last_message:
+            return MessageSerializer(last_message).data
+        return None
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+    conversation = serializers.CharField(source='conversation.id')
+
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'sender', 'message_body', 
+                 'sent_at', 'is_read']
+        read_only_fields = ['sent_at', 'is_read']
+
+    def get_sender(self, obj):
+        return UserSerializer(obj.sender).data
+
+    def validate_message_body(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Message cannot be empty")
+        if len(value) > 1000:
+            raise serializers.ValidationError("Message is too long")
+        return value
