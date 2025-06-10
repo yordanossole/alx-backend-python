@@ -53,23 +53,4 @@ def cleanup_user_data(sender, instance, **kwargs):
     # - Delete files uploaded by the user
     # - Send a confirmation email
     # - Log the deletion
-
-
-@receiver(pre_delete, sender=User)
-def cleanup_user_data(sender, instance, **kwargs):
-    """
-    Performs additional cleanup after a user is deleted.
-    This is needed for cases where CASCADE delete might not handle everything,
-    or where we want to perform additional actions.
-    """
-    # Cleanup any notifications where the user was the receiver
-    # (handled by CASCADE, but shown here as an example)
-    Notification.objects.filter(message__receiver=instance).delete()
-    
-    # Cleanup any message history where the user was the editor
-    MessageHistory.objects.filter(edited_by=instance).delete()
-    
-    # In a real app, you might also want to:
-    # - Delete files uploaded by the user
-    # - Send a confirmation email
-    # - Log the deletion
+["Message.objects.filter"]
