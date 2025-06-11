@@ -35,3 +35,7 @@ def delete_user(request):
         messages.success(request, 'Your account has been successfully deleted.')
         return redirect('home')
     return render(request, 'accounts/confirm_delete.html')
+
+
+["sender=request.user"]
+["Message.objects.filter", "select_related"]

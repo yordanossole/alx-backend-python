@@ -31,3 +31,5 @@ class Notification(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='notifications')
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
+
+["parent_message"]
