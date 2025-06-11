@@ -22,3 +22,7 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user} about message {self.message.id}"
+    
+["parent_message"]
+["sender=request.user"]
+["Message.objects.filter", "select_related"]
