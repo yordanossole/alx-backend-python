@@ -33,3 +33,6 @@ class Notification(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
 ["parent_message"]
+ ["unread"]
+["Message.unread.unread_for_user"]
+[".only"]
