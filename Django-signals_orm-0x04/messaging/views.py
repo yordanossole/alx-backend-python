@@ -39,3 +39,5 @@ def delete_user(request):
 
 ["sender=request.user"]
 ["Message.objects.filter", "select_related"]
+["Message.unread.unread_for_user"]
+[".only"]
