@@ -11,9 +11,23 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now)
     is_read = models.BooleanField(default=False)
+    edited = models.BooleanField(default=False)
+    last_edited = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"From {self.sender} to {self.receiver} - {self.timestamp}"
+
+class MessageHistory(models.Model):
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='history')
+    old_content = models.TextField()
+    edited_at = models.DateTimeField(default=timezone.now)
+    edited_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ['-edited_at']
+
+    def __str__(self):
+        return f"History for message {self.message.id} edited at {self.edited_at}"
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
