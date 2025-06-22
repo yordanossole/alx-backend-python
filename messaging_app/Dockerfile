@@ -1,22 +1,35 @@
-# 1. Use the official Python 3.10 image as the base
+# Use a base Python image python:3.10
 FROM python:3.10
 
-# 2. Set environment variables
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. Set the working directory inside the container
+# Set work directory
 WORKDIR /app
 
-# 4. Copy requirements.txt and install dependencies
-COPY requirements.txt /app/
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Install system dependencies for MySQL
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        default-libmysqlclient-dev \
+        build-essential \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-# 5. Copy the entire project into the container
+# Install necessary dependencies from the requirements.txt
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your app code into the container
 COPY . /app/
 
-# 6. Expose the port the Django app runs on
+# Create a non-root user
+RUN adduser --disabled-password --gecos '' appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Expose the port your Django app runs on (default is 8000)
 EXPOSE 8000
 
-# 7. Default command to run the Django development server
+# Run the application
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
