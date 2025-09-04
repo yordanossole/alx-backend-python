@@ -2,6 +2,19 @@ from mysql.connector import connect
 import mysql.connector
 import csv
 
+def batch_generator(file_handle, size):
+    file_reader = csv.reader(file_handle)
+    next(file_reader)
+    chunk = []
+    for row in file_reader:
+        chunk.append((row[0], row[1], int(row[2])))
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
 def connect_db() : # connects to the mysql database server 
     try:
         conn = connect(
@@ -82,7 +95,10 @@ def insert_data(connection, data): #- inserts data in the database if it does no
         if connection:
             cursor = connection.cursor()
             query = '''INSERT INTO user_data (name, email, age) VALUES (%s, %s, %s);'''
-            cursor.executemany(query, rows)
+            with open(data, "r") as file_handle:
+                for chunk in batch_generator(file_handle, 100):
+                    cursor.executemany(query, chunk)
+                    
             connection.commit()
             print("Data inserted successfuly.")
         else:
