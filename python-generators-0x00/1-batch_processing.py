@@ -13,6 +13,7 @@ def stream_users_in_batches(batch_size):
                 yield batch
     except Exception as e:
             print(f"Error while streaming users: {e}")
+            return ""
             
     finally:
         if cursor:
