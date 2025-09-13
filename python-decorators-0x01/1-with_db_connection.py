@@ -12,7 +12,7 @@ def with_db_connection(func):
             return user
         finally:
             if conn:
-                conn.close
+                conn.close()
     
     return wrapper
         
