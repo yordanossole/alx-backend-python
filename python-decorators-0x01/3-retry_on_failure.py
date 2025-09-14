@@ -19,33 +19,27 @@ def with_db_connection(func):
     return wrapper
 
 def retry_on_failure(retries, delay):
-    def decorator(func):
 
+    def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):            
             conn = kwargs.get('conn')
             if not conn:
                 raise ValueError("No DB connection found.")
-
             nonlocal retries
-            try:
-                print(f"times running {retries}")
-                users = func(conn)
-
-                if retries == 2:
+            while retries > 0:
+                try:
+                    retries -= 1
+                    users = func(conn)
+                    ## Test whether it handles or not
+                    # if retries >= 1:
+                    #     raise ValueError("test error")
                     return users
-                else:
-                    raise ValueError("test")
-
-            except Exception as e:
-                print(f"exception: {retries} \n error: {e}")
-                retries -= 1
-                if retries <= 0:
-                    return f"Failed: {retries} times retried"
-                
-                time.sleep(delay)            
-                return wrapper(*args, **kwargs)
-                
+                except Exception as e:
+                    time.sleep(delay)            
+                    print(f"Error: {e}")
+            else:
+                print("All retries failed")                  
 
         return wrapper
     return decorator
