@@ -1,125 +1,159 @@
-from mysql.connector import connect
+#!/usr/bin/python3
+"""
+Script to set up MySQL database and populate it with sample data.
+"""
 import mysql.connector
 import csv
-
-def batch_generator(file_handle, size):
-    file_reader = csv.reader(file_handle)
-    next(file_reader)
-    chunk = []
-    for row in file_reader:
-        chunk.append((row[0], row[1], int(row[2])))
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
+import os
+from mysql.connector import Error
 
 
-def connect_db() : # connects to the mysql database server 
-    try:
-        conn = connect(
-            host="localhost",
-            user="admin",
-            password="admin",
-        )
-        print("Database connected successfuly.")
-        return conn
+def connect_db():
+    """
+    Connects to the MySQL database server.
     
-    except mysql.connector.Error as e:
-        print(f"Error occured: {e}")
-        return None
-
-
-def create_database(connection):#- creates the database ALX_prodev if it does not exist
-    cursor = None
+    Returns:
+        connection: MySQL connection object if successful, None otherwise
+    """
     try:
-        if connection:
-            cursor = connection.cursor()
-            cursor.execute("CREATE DATABASE ALX_prodev;")
-            print("Database created successfuly.")
-    except Exception:
-        print("Database already created!")
-    finally:
-        if cursor:
-            cursor.close()
-        # if connection and connection.is_connected():
-        #     connection.close()
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="root",
+        )
 
+        if connection.is_connected():
+            return connection
+
+    except Error as e:
+        print(f"Error connecting to MySQL: {e}")
+
+
+def create_database(connection):
+    """
+    Creates the database ALX_prodev if it does not exist.
+    
+    args:
+        connection: MySQL connection object
+    """
+    try:
+        cursor = connection.cursor()
+        cursor.execute("CREATE DATABASE IF NOT EXISTS ALX_prodev")
+        cursor.close()
+    except Error as e:
+        print(f"Error creating database: {e}")
+
+
+def connect_to_prodev():
+    """
+    Connects to the ALX_prodev database in MySQL.
+    
+    Returns:
+        connection: MySQL connection object to ALX_prodev if successfully, None otherwise
+    """
+    try:
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="root",
+            database="ALX_prodev",
+        )
+    
+        if connection.is_connected():
+            return connection
+    except Error as e:
+        print(f"Error connecting to ALX_prodev: {e}")
+
+
+def create_table(connection):
+    """
+    Creates a table user_data if it does not exist with the required fields.
+    
+    Args:
+        connection: MySQL connection object to ALX_prodev
+    """
+    try:
+        cursor = connection.cursor()
+
+        # Create table with specified fields
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_data (
+                user_id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                age TINYINT UNSIGNED NOT NULL,
+                INDEX idx_user_id (user_id)
+            )
+        """)
+
+        cursor.close()
+        print("Table user_data created successfully")
+    except Error as e:
+        print(f"Error creating table: {e}")
+
+
+def insert_data(connection, data):
+    """
+    Insert data in the database if it does not exist.
+
+    Args:
+        connection: MySQL connection object to ALX_prodev
+        csv_file: Path to the CSV file containing the data
+    """
+    try:
+        # Check if file exists
+        if not os.path.exists(data):
+            print(f"CSV file {data} not found")
+            return
         
+        cursor = connection.cursor()
 
-def connect_to_prodev(): # connects the the ALX_prodev database in MYSQL
-    try:
-        conn = connect(
-            host="localhost",
-            user="admin",
-            password="admin",
-            database="ALX_prodev"
-        )
-        print("Database connected successfuly to ALX_prodev")
-        return conn
-    except Exception:
-        print("Error occured")
-        return None
-    
+        # Read data from CSV file:
+        with open(data, 'r') as file:
+            csv_reader = csv.reader(file)
+            # Skip header row
+            header = next(csv_reader)
 
-def create_table(connection):#- creates a table user_data if it does not exists with the required fields
-    cursor = None
-    try:
-        if connection:
-            cursor = connection.cursor()
-            cursor.execute('''CREATE TABLE user_data 
-                           (user_id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-                           name VARCHAR(255) NOT NULL,
-                           email VARCHAR(255) NOT NULL,
-                           age DECIMAL NOT NULL);''')
-            print("Table created successfuly.")
-    except Exception:
-        print("Table already exists!")
-    finally:
-        if cursor:
-            cursor.close()
-        # if connection and connection.is_connected():
-        #     connection.close()
+            # Prepare SQL query for inserting data
+            sql_query = """
+                INSERT IGNORE INTO user_data(name, email, age)
+                VALUES (%s, %s, %s)
+            """
 
+            # List of rows to insert to the table
+            rows_to_insert = [tuple(row[:3]) for row in csv_reader if len(row) >= 3]
 
-def insert_data(connection, data): #- inserts data in the database if it does not exist
-
-    with open(data, "r") as file_handle:
-        file_reader = csv.reader(file_handle)
-        next(file_reader)
-        rows = [(row[0], row[1], int(row[2])) for row in file_reader]
-
-
-    cursor = None
-    try:
-        if connection:
-            cursor = connection.cursor()
-            query = '''INSERT INTO user_data (name, email, age) VALUES (%s, %s, %s);'''
-            with open(data, "r") as file_handle:
-                for chunk in batch_generator(file_handle, 100):
-                    cursor.executemany(query, chunk)
-                    
+            # Execute batch insert for all rows
+            cursor.executemany(sql_query, rows_to_insert)
+            # Commit the transaction to save changes to database
             connection.commit()
-            print("Data inserted successfuly.")
-        else:
-            print("no connection")
+
+            print(f"{cursor.rowcount} record inserted successfully")
+
+        cursor.close()
+    except Error as e:
+        print(f"Error inserting data: {e}")
     except Exception as e:
-        print(f"Error occured while inserting data! {e}")
-    finally:
-        if cursor:
-            cursor.close()
-        # if connection and connection.is_connected():
-        #     connection.close()
-    
+        print(f"An error occured: {e}")
 
 
-# normal_conn = connect_db()
+def main():
+    # Connect to the database
+    connection = connect_db()
 
-# create_database(normal_conn)
-# prodev_con = connect_to_prodev()
-# create_table(prodev_con)
-# prodev_con = connect_to_prodev()
-# insert_data(prodev_con, "user_data.csv")
+    if connection:
+        # Create the ALX_prodev Database if it does not exist
+        create_database(connection)
+        connection.close()
 
+        # Connect to the ALX_prodev Database
+        connection = connect_to_prodev()
+        if connection:
+            # Create table user_data if it does not exist
+            create_table(connection)
+            # Insert data to the table user_data
+            insert_data(connection, 'user_data.csv')
+            connection.close()
 
-
+if __name__ == "__main__":
+    main()

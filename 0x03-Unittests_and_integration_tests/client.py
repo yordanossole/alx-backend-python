@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """A github org client
 """
@@ -57,4 +56,3 @@ class GithubOrgClient:
         except KeyError:
             return False
         return has_license
-

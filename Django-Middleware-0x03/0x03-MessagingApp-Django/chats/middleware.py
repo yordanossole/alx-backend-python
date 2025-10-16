@@ -1,146 +1,115 @@
-from datetime import datetime, timedelta
-import logging
 import os
-from django.http import HttpResponseForbidden, JsonResponse
-from pathlib import Path
+from datetime import datetime, timedelta
+from django.conf import settings
+from django.http import HttpResponseForbidden
 from collections import defaultdict
 
-# Get the base directory of the project
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Configure logging
-log_file = os.path.join(BASE_DIR, 'requests.log')
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
 
 class RequestLoggingMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # Ensure log file exists
-        if not os.path.exists(log_file):
-            with open(log_file, 'w') as f:
-                f.write('Request Log File Created\n')
 
     def __call__(self, request):
-        try:
-            # Get the user information
-            user = request.user.username if request.user.is_authenticated else 'Anonymous'
-            
-            # Log the request information
-            log_message = f"User: {user} - Path: {request.path}"
-            logging.info(log_message)
-            
-            # Process the request
-            response = self.get_response(request)
-            
-            return response
-        except Exception as e:
-            logging.error(f"Error in RequestLoggingMiddleware: {str(e)}")
-            return self.get_response(request)
+        # Log the request
+        user = request.user if request.user.is_authenticated else "Anonymous"
+        log_entry = f"{datetime.now()} - User: {user} - Path: {request.path}\n"
+        
+        log_file_path = os.path.join(settings.BASE_DIR, 'requests.log')
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(log_entry)
+        
+        response = self.get_response(request)
+        return response
+
 
 class RestrictAccessByTimeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        current_hour = datetime.now().hour
+        # Check if the request is for chat-related URLs
+        if request.path.startswith('/chats/'):
+            current_hour = datetime.now().hour
+            
+            # Restrict access outside 9 AM (9) to 6 PM (18)
+            if not (9 <= current_hour <= 18):
+                return HttpResponseForbidden("Access to chat is restricted outside business hours (9 AM - 6 PM).")
         
-        # Check if current time is between 9 PM (21) and 6 AM (6)
-        if current_hour >= 21 or current_hour < 6:
-            return HttpResponseForbidden(
-                "Access denied: The messaging service is only available between 6 AM and 9 PM."
-            )
-        
-        return self.get_response(request)
+        response = self.get_response(request)
+        return response
+
 
 class OffensiveLanguageMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # Dictionary to store request counts for each IP
-        self.request_counts = defaultdict(list)
-        # Maximum number of messages allowed per time window
-        self.max_requests = 5
-        # Time window in seconds (1 minute)
-        self.time_window = 60
+        # Dictionary to store IP addresses and their message timestamps
+        self.ip_message_tracker = defaultdict(list)
+        self.message_limit = 5  # 5 messages per minute
+        self.time_window = 60   # 60 seconds (1 minute)
 
     def __call__(self, request):
-        # Only check POST requests to message endpoints
-        if request.method == 'POST' and 'messages' in request.path:
-            ip_address = self.get_client_ip(request)
+        # Only check POST requests to chat endpoints (when sending messages)
+        if request.method == 'POST' and request.path.startswith('/chats/'):
+            client_ip = self.get_client_ip(request)
             current_time = datetime.now()
-
-            # Clean up old requests outside the time window
-            self.cleanup_old_requests(ip_address, current_time)
-
-            # Check if the IP has exceeded the rate limit
-            if len(self.request_counts[ip_address]) >= self.max_requests:
-                return JsonResponse({
-                    'error': 'Rate limit exceeded',
-                    'message': f'You can only send {self.max_requests} messages per minute. Please wait before sending more messages.'
-                }, status=429)
-
-            # Add the current request to the count
-            self.request_counts[ip_address].append(current_time)
-
-        return self.get_response(request)
-
+            
+            # Clean old timestamps (older than 1 minute)
+            self.clean_old_timestamps(client_ip, current_time)
+            
+            # Check if user has exceeded the limit
+            if len(self.ip_message_tracker[client_ip]) >= self.message_limit:
+                return HttpResponseForbidden("Rate limit exceeded. You can only send 5 messages per minute.")
+            
+            # Add current timestamp to the tracker
+            self.ip_message_tracker[client_ip].append(current_time)
+        
+        response = self.get_response(request)
+        return response
+    
     def get_client_ip(self, request):
+        """Get the client's IP address"""
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0]
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
-
-    def cleanup_old_requests(self, ip_address, current_time):
-        # Remove requests older than the time window
-        self.request_counts[ip_address] = [
-            req_time for req_time in self.request_counts[ip_address]
-            if (current_time - req_time).total_seconds() <= self.time_window
+    
+    def clean_old_timestamps(self, ip, current_time):
+        """Remove timestamps older than the time window"""
+        cutoff_time = current_time - timedelta(seconds=self.time_window)
+        self.ip_message_tracker[ip] = [
+            timestamp for timestamp in self.ip_message_tracker[ip] 
+            if timestamp > cutoff_time
         ]
+
 
 class RolepermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # Define admin-only paths
-        self.admin_paths = [
-            '/api/admin/',
-            '/api/users/delete/',
-            '/api/messages/delete/',
-            '/api/conversations/delete/'
-        ]
-        # Define moderator-only paths
-        self.moderator_paths = [
-            '/api/messages/moderate/',
-            '/api/users/moderate/'
-        ]
 
     def __call__(self, request):
-        # Skip check for non-authenticated users (they'll be handled by authentication middleware)
-        if not request.user.is_authenticated:
-            return self.get_response(request)
-
-        # Get the current path
-        current_path = request.path
-
-        # Check if the path requires admin privileges
-        if any(path in current_path for path in self.admin_paths):
-            if not request.user.is_staff:  # Django's built-in admin check
-                return JsonResponse({
-                    'error': 'Permission denied',
-                    'message': 'This action requires administrator privileges.'
-                }, status=403)
-
-        # Check if the path requires moderator privileges
-        if any(path in current_path for path in self.moderator_paths):
-            if not (request.user.is_staff or hasattr(request.user, 'is_moderator')):
-                return JsonResponse({
-                    'error': 'Permission denied',
-                    'message': 'This action requires moderator privileges.'
-                }, status=403)
-
-        return self.get_response(request) 
+        # Check if the request is for chat-related URLs that require admin/moderator access
+        if request.path.startswith('/chats/'):
+            # Check if user is authenticated
+            if not request.user.is_authenticated:
+                return HttpResponseForbidden("Authentication required.")
+            
+            # Check if user has admin or moderator role
+            if not self.has_admin_or_moderator_role(request.user):
+                return HttpResponseForbidden("Access denied. Admin or moderator role required.")
+        
+        response = self.get_response(request)
+        return response
+    
+    def has_admin_or_moderator_role(self, user):
+        """Check if user has admin or moderator role"""
+        # Check if user is Django superuser (admin)
+        if user.is_superuser or user.is_staff:
+            return True
+        
+        # Check if user has admin or moderator role through groups
+        user_groups = user.groups.values_list('name', flat=True)
+        allowed_roles = ['admin', 'moderator', 'Admin', 'Moderator']
+        
+        return any(role in user_groups for role in allowed_roles)

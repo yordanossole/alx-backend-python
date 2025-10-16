@@ -1,14 +1,13 @@
-
 #!/usr/bin/env python3
 """Generic utilities for github org client.
 """
 import requests
 from functools import wraps
 from typing import (
-    Mapping,
     Sequence,
     Any,
     Dict,
+    Mapping,
     Callable,
 )
 
@@ -19,7 +18,7 @@ __all__ = [
 ]
 
 
-def access_nested_map(nested_map: Mapping, path: Sequence) -> Any:
+def access_nested_map(nmap: Mapping, path: Sequence) -> Any:
     """Access nested map with key path.
     Parameters
     ----------
@@ -33,12 +32,12 @@ def access_nested_map(nested_map: Mapping, path: Sequence) -> Any:
     >>> access_nested_map(nested_map, ["a", "b", "c"])
     1
     """
-    for key in path:
-        if not isinstance(nested_map, Mapping):
-            raise KeyError(key)
-        nested_map = nested_map[key]
+    for k in path:
+        if not isinstance(nmap, Mapping):
+            raise KeyError(k)
+        nmap = nmap[k]
 
-    return nested_map
+    return nmap
 
 
 def get_json(url: str) -> Dict:
@@ -74,4 +73,3 @@ def memoize(fn: Callable) -> Callable:
         return getattr(self, attr_name)
 
     return property(memoized)
-
